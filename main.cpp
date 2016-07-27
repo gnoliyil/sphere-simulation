@@ -5,6 +5,9 @@
 #include <ode_robots/odeagent.h>
 #include <ode_robots/octaplayground.h> // arena
 #include <ode_robots/passivesphere.h>  // passive balls
+#include <ode_robots/playground.h>
+#include <ode_robots/operators.h>
+#include <ode_robots/boxpile.h>
 
 // controller
 #include <selforg/invertmotorspace.h>
@@ -14,8 +17,8 @@
 #include <selforg/one2onewiring.h>  // simple wiring
 
 // robots
-#include <ode_robots/sphererobot3masses.h>
-#include <ode_robots/axisorientationsensor.h>
+#include "sphere.h" 
+#include "axisorientationsensor.h"
 
 // dep rules
 #include "dep.h"
@@ -66,7 +69,7 @@ protected:
 class ThisSim : public Simulation {
 public:
   AbstractController* controller;
-  Sphererobot3Masses* sphere1;
+  Sphererobot3MassesMod* sphere1;
 
   // starting function (executed once at the beginning of the simulation loop)
   void start(const OdeHandle& odeHandle, const OsgHandle& osgHandle, GlobalData& global)
@@ -76,19 +79,48 @@ public:
     // - set global noise to 0.1
     global.odeConfig.setParam("noise",0.1);
     //  global.odeConfig.setParam("gravity", 0); // no gravity
+    
+    if (true) {
+      Boxpile* boxpile = new Boxpile(odeHandle, osgHandle,osg::Vec3(20.0, 20.0, 1.0), 100, 1,
+                                     osg::Vec3(1, 1, 0.07), osg::Vec3(.4, .4, 0.02));
+      boxpile->setColor("wall");
+      boxpile->setPose(ROTM(M_PI/5.0,0,0,1)*TRANSM(20 ,0 , 0));
+      global.obstacles.push_back(boxpile);
+    }
+
+    // stacked Playgrounds
+    double scale = 10;
+    double heightoffset = 2;
+    double height = 1;
+    for (int i=0; i< 1; i++){
+      auto playground = new Playground(odeHandle, osgHandle,
+                                  osg::Vec3((4+4*i)*scale, 1, heightoffset +i*height), 1, false);
+      //      playground->setColor(Color((i & 1) == 0,(i & 2) == 0,(i & 3) == 0,0.3f));
+      // playground->setTexture("Images/really_white.rgb");
+      playground->setPosition(osg::Vec3(0,0,0)); // playground positionieren und generieren
+      global.obstacles.push_back(playground);
+    }
+
+    
+    
 
     // Spherical Robot with axis (gyro) sensors:
     // - get default configuration for robot
     // - create pointer to spherical robot (with odeHandle, osgHandle and configuration)
     // - place robot (unfortunatelly there is a type cast necessary, which is not quite understandable)
-    Sphererobot3MassesConf conf = Sphererobot3Masses::getDefaultConf();
-    conf.addSensor(new AxisOrientationSensor(AxisOrientationSensor::ZProjection));
-    // regular behaviour   
-    
+    Sphererobot3MassesModConf conf = Sphererobot3MassesMod::getDefaultConf();
+    conf.addSensor(new AxisOrientationSensorMod(AxisOrientationSensorMod::ZProjection));
+    // regular behaviour  
+    conf.irAxis1 = true; 
+    conf.irAxis2 = true; 
+    conf.irAxis3 = true;     
+    conf.irsensorscale = 2; 
+    conf.irInverseValue = true; 
     conf.motorsensor = true;
+    conf.motor_ir_before_sensors = true; 
     conf.diameter = 1.0;
-    conf.pendularrange = 0.2;
-    sphere1 = new Sphererobot3Masses ( odeHandle, osgHandle.changeColor(Color(1.0,0.0,0)),
+    conf.pendularrange = 0.1;
+    sphere1 = new Sphererobot3MassesMod ( odeHandle, osgHandle.changeColor(Color(1.0,0.0,0)),
                                        conf, "Sphere1", 0.2);
     ((OdeRobot*)sphere1)->place ( Pos( 0 , 0 , 0.1 ));
     
@@ -104,7 +136,7 @@ public:
     //    }
     //    k++;
     //    printf("k = %d\n", k); 
-    //  } 
+    //  }    
       
     global.configs.push_back ( sphere1 );
 
@@ -136,7 +168,7 @@ public:
     global.configs.push_back ( controller );
     
     // create pointer to one2onewiring which uses colored-noise
-    One2OneWiring* wiring = new One2OneWiring ( new ColorUniformNoise() );
+    One2OneWiring* wiring = new One2OneWiring ( new ColorUniformNoise(0) );
 
     // create pointer to agent (plotoptions is provided by Simulation (generated from cmdline options)
     // initialize pointer with controller, robot and wiring

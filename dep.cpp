@@ -92,14 +92,32 @@ void DEP::init(int sensornumber, int motornumber, RandGen* randGen){
   if(conf.initModel){
     // special model initialization for delay sensor
     //  (two ID matrices besides each other)
-    if(number_sensors>=2*number_motors){
+    if (number_sensors>=3*number_motors) {
+      // Motor [x y z] + Ir[x, x'] + Ir[y, y'] + Ir[z, z'] + Sensor[x y z]
+      Matrix M1(number_motors, number_motors);
+      M1.toId();
+      M = M1; 
+      Matrix M2(number_motors, number_motors * 2); 
+      M2.val(0, 0) = 1; 
+      M2.val(0, 1) = -1; 
+      M2.val(0, 2) = 0; 
+      M2.val(0, 3) = 0; 
+      M2.val(0, 4) = 0; 
+      M2.val(0, 5) = 0; 
+      
+      M2.val(1, 2) = 1; 
+      M2.val(1, 3) = -1;
+      M2.val(2, 4) = 1; 
+      M2.val(2, 5) = -1;
+      M = M.beside(M2);
+      M = M.beside(M1); 
+    } else if (number_sensors>=2*number_motors){
       Matrix M1(number_motors, number_sensors/2);
       M1.toId();
       M=M1.beside(M1);
     }else
       M.toId(); // set a to identity matrix;
   }
-
   C_update.toId();
   C_update*=conf.initFeedbackStrength;
 
