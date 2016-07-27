@@ -3,6 +3,7 @@
 
 // include agent (class for holding a robot, a controller and a wiring)
 #include <ode_robots/odeagent.h>
+#include <ode_robots/terrainground.h>
 #include <ode_robots/octaplayground.h> // arena
 #include <ode_robots/passivesphere.h>  // passive balls
 #include <ode_robots/playground.h>
@@ -17,6 +18,7 @@
 #include <selforg/one2onewiring.h>  // simple wiring
 
 // robots
+#include <ode_robots/speedsensor.h>
 #include "sphere.h" 
 #include "axisorientationsensor.h"
 
@@ -80,7 +82,7 @@ public:
     global.odeConfig.setParam("noise",0.1);
     //  global.odeConfig.setParam("gravity", 0); // no gravity
     
-    if (true) {
+    if (false) {
       Boxpile* boxpile = new Boxpile(odeHandle, osgHandle,osg::Vec3(20.0, 20.0, 1.0), 100, 1,
                                      osg::Vec3(1, 1, 0.07), osg::Vec3(.4, .4, 0.02));
       boxpile->setColor("wall");
@@ -93,15 +95,22 @@ public:
     double heightoffset = 2;
     double height = 1;
     for (int i=0; i< 1; i++){
-      auto playground = new Playground(odeHandle, osgHandle,
-                                  osg::Vec3((4+4*i)*scale, 1, heightoffset +i*height), 1, false);
+      //auto playground = new Playground(odeHandle, osgHandle,
+      //                            osg::Vec3((4+4*i)*scale, 1, heightoffset +i*height), 1, false);
       //      playground->setColor(Color((i & 1) == 0,(i & 2) == 0,(i & 3) == 0,0.3f));
       // playground->setTexture("Images/really_white.rgb");
-      playground->setPosition(osg::Vec3(0,0,0)); // playground positionieren und generieren
-      global.obstacles.push_back(playground);
+      //playground->setPosition(osg::Vec3(0,0,0)); // playground positionieren und generieren
+      //global.obstacles.push_back(playground);
     }
 
-    
+   TerrainGround* terrainground =
+          new TerrainGround(odeHandle, osgHandle.changeColor(Color(1.0f,1.0f,1.0f)),
+                            //                        "terrains/dip128_flat.ppm","terrains/dip128_flat_texture.ppm", 
+                            "terrains/dip128.ppm","terrains/dip128_texture.ppm",
+                            20, 20, 1.3 /* height */, OSGHeightField::Red);
+        terrainground->setPose(osg::Matrix::translate(0, 0, 0.1));
+        global.obstacles.push_back(terrainground);
+        //addRobot(odeHandle, osgHandle, global, 3); 
     
 
     // Spherical Robot with axis (gyro) sensors:
@@ -110,16 +119,18 @@ public:
     // - place robot (unfortunatelly there is a type cast necessary, which is not quite understandable)
     Sphererobot3MassesModConf conf = Sphererobot3MassesMod::getDefaultConf();
     conf.addSensor(new AxisOrientationSensorMod(AxisOrientationSensorMod::ZProjection));
+    conf.addSensor(new SpeedSensor(5, SpeedSensor::RotationalRel)); 
+
     // regular behaviour  
-    conf.irAxis1 = true; 
-    conf.irAxis2 = true; 
-    conf.irAxis3 = true;     
+    conf.irAxis1 = false; 
+    conf.irAxis2 = false; 
+    conf.irAxis3 = false;     
     conf.irsensorscale = 2; 
     conf.irInverseValue = true; 
-    conf.motorsensor = true;
+    conf.motorsensor = false;
     conf.motor_ir_before_sensors = true; 
     conf.diameter = 1.0;
-    conf.pendularrange = 0.1;
+    conf.pendularrange = 0.2;
     sphere1 = new Sphererobot3MassesMod ( odeHandle, osgHandle.changeColor(Color(1.0,0.0,0)),
                                        conf, "Sphere1", 0.2);
     ((OdeRobot*)sphere1)->place ( Pos( 0 , 0 , 0.1 ));
@@ -168,7 +179,7 @@ public:
     global.configs.push_back ( controller );
     
     // create pointer to one2onewiring which uses colored-noise
-    One2OneWiring* wiring = new One2OneWiring ( new ColorUniformNoise(0) );
+    One2OneWiring* wiring = new One2OneWiring ( new ColorUniformNoise );
 
     // create pointer to agent (plotoptions is provided by Simulation (generated from cmdline options)
     // initialize pointer with controller, robot and wiring
@@ -177,7 +188,7 @@ public:
     agent->init ( controller , sphere1 , wiring );
 
     // the following line will enable a position tracking of the robot, which is written into a file
-    //agent->setTrackOptions(TrackRobot(true, true, true, false, "Sphere_zaxis", 20));
+    agent->setTrackOptions(TrackRobot(true, true, true, false, "Sphere_zaxis", 20));
     global.agents.push_back ( agent );
 
     // display all parameters of all configurable objects on the console

@@ -115,6 +115,10 @@ void DEP::init(int sensornumber, int motornumber, RandGen* randGen){
       Matrix M1(number_motors, number_sensors/2);
       M1.toId();
       M=M1.beside(M1);
+      M.val(0, 3) = M.val(1, 4) = M.val(2, 5) = 0; 
+      M.val(0, 4) = M.val(0, 5) = 1; 
+      M.val(1, 3) = M.val(1, 5) = 1; 
+      M.val(2, 3) = M.val(2, 4) = 1; 
     }else
       M.toId(); // set a to identity matrix;
   }
