@@ -72,10 +72,8 @@ DEP::~DEP(){
 
 void DEP::init(int sensornumber, int motornumber, RandGen* randGen){
   if(!randGen) randGen = new RandGen(); // this gives a small memory leak
-
-
-  number_sensors= sensornumber;
-  number_motors = motornumber;
+  number_sensors= (unsigned short)sensornumber;
+  number_motors = (unsigned short)motornumber;
   M.set(number_motors, number_sensors);
   C.set(number_motors, number_sensors);
   C_update.set(number_motors, number_sensors);
@@ -97,20 +95,12 @@ void DEP::init(int sensornumber, int motornumber, RandGen* randGen){
       Matrix M1(number_motors, number_motors);
       M1.toId();
       M = M1; 
-      Matrix M2(number_motors, number_motors * 2); 
-      M2.val(0, 0) = 1; 
-      M2.val(0, 1) = -1; 
-      M2.val(0, 2) = 0; 
-      M2.val(0, 3) = 0; 
-      M2.val(0, 4) = 0; 
-      M2.val(0, 5) = 0; 
-      
-      M2.val(1, 2) = 1; 
-      M2.val(1, 3) = -1;
-      M2.val(2, 4) = 1; 
-      M2.val(2, 5) = -1;
+      Matrix M2(number_motors, number_motors); 
+      M2.val(0, 1) = M2.val(0, 2) = 1; 
+      M2.val(1, 0) = M2.val(1, 2) = 1; 
+      M2.val(2, 0) = M2.val(2, 1) = 1; 
       M = M.beside(M2);
-      M = M.beside(M1); 
+      M = M.beside(M2);
     } else if (number_sensors>=2*number_motors){
       Matrix M1(number_motors, number_sensors/2);
       M1.toId();
@@ -119,8 +109,13 @@ void DEP::init(int sensornumber, int motornumber, RandGen* randGen){
       M.val(0, 4) = M.val(0, 5) = 1; 
       M.val(1, 3) = M.val(1, 5) = 1; 
       M.val(2, 3) = M.val(2, 4) = 1; 
-    }else
-      M.toId(); // set a to identity matrix;
+    } else {
+        M.toId(); // set a to identity matrix;
+        M.val(0, 0) = M.val(1, 1) = M.val(2, 2) = 0; 
+        M.val(0, 1) = M.val(0, 2) = 1; 
+        M.val(1, 0) = M.val(1, 2) = 1; 
+        M.val(2, 0) = M.val(2, 1) = 1; 
+    }
   }
   C_update.toId();
   C_update*=conf.initFeedbackStrength;
