@@ -30,89 +30,95 @@
 
 namespace lpzrobots {
 
-  AxisOrientationSensorMod::AxisOrientationSensorMod(Mode mode, short dimensions)
-    : mode(mode), dimensions(dimensions) {
-    own = 0;
-    setBaseInfo(SensorMotorInfo("AxisOrientation").changequantity(SensorMotorInfo::Position));
-    printf("###############################create\n") ;
-  }
-
-  void AxisOrientationSensorMod::init(Primitive* own, Joint* joint){
-    this->own = own;
-  }
-
-  int AxisOrientationSensorMod::getSensorNumber() const{
-
-    short n = ((dimensions & X) != 0) + ((dimensions & Y) != 0) + ((dimensions & Z) != 0);
-    switch (mode) {
-    case OnlyZAxis:
-    case ZProjection:
-      return n;
-      break;
-    case Axis:
-      return 3*n;
-      break;
+    AxisOrientationSensorMod::AxisOrientationSensorMod(Mode mode, short dimensions)
+            : mode(mode), dimensions(dimensions) {
+        own = 0;
+        setBaseInfo(SensorMotorInfo("AxisOrientation").changequantity(SensorMotorInfo::Position));
+        //printf("###############################create\n") ;
     }
-    return 0;
-  }
 
-  bool AxisOrientationSensorMod::sense(const GlobalData& globaldata) { return true; }
-
-  std::list<sensor> AxisOrientationSensorMod::getList() const {
-    assert(own);
-    matrix::Matrix A = odeRto3x3RotationMatrix ( dBodyGetRotation ( own->getBody() ) );
-
-    switch (mode) {
-    case OnlyZAxis:
-      if(dimensions == (X | Y | Z)) return A.column(2).convertToList();
-      else return selectrows(A.column(2),dimensions); break;
-    case ZProjection:
-      if(dimensions == (X | Y | Z)) return A.row(2).convertToList();
-      else return selectrows(A.row(2)^(matrix::T),dimensions);  break;
-    case Axis:
-      if(dimensions == (X | Y | Z)) return A.convertToList();
-      else return selectrows(A,dimensions); break;
+    void AxisOrientationSensorMod::init(Primitive *own, Joint *joint) {
+        this->own = own;
     }
-    return std::list<sensor>();
-  }
 
-  int AxisOrientationSensorMod::get(sensor* sensors, int length) const{
-    assert(own);
-    static matrix::Matrix lastTime(3, 3);
-    static double time_interval = 0.01; 
-     
-    matrix::Matrix A = odeRto3x3RotationMatrix ( dBodyGetRotation ( own->getBody() ) );
-    
-    //calculate angular velocity: 
-    matrix::Matrix deriv = (A - lastTime) * (1 / time_interval); // * A^(matrix::T); 
-    matrix::Matrix angular = deriv * (A^(matrix::T)); 
-    
-    double w_x = angular.val(0, 2), 
-           w_y = angular.val(1, 0), 
-          w_z = angular.val(2, 1); 
-    lastTime = A; 
-    printf("%lf %lf %lf\n", w_x, w_y, w_z); 
-    
-    switch (mode) {
-    case OnlyZAxis:
-      if(dimensions == (X | Y | Z)) return A.column(2).convertToBuffer(sensors, length);
-      else return selectrows(sensors, length, A.column(2),dimensions); break;
-    case ZProjection:
-      if(dimensions == (X | Y | Z)) {
-        int return_value = A.row(2).convertToBuffer(sensors, length);
-        //for (int i = 0; i < length; i++) {
-        //  printf("%lf ", sensors[i]); 
-        //}
-        //printf("\n"); 
-        return return_value; 
-      }
-      else return selectrows(sensors, length, A.row(2)^(matrix::T),dimensions);  break;
-    case Axis:
-      if(dimensions == (X | Y | Z)) return A.convertToBuffer(sensors, length);
-      else return selectrows(sensors, length, A,dimensions); break;
+    int AxisOrientationSensorMod::getSensorNumber() const {
+
+        short n = ((dimensions & X) != 0) + ((dimensions & Y) != 0) + ((dimensions & Z) != 0);
+        switch (mode) {
+            case OnlyZAxis:
+            case ZProjection:
+                return n;
+                break;
+            case Axis:
+                return 3 * n;
+                break;
+        }
+        return 0;
     }
-    return 0;
-  }
+
+    bool AxisOrientationSensorMod::sense(const GlobalData &globaldata) { return true; }
+
+    std::list<sensor> AxisOrientationSensorMod::getList() const {
+        assert(own);
+        matrix::Matrix A = odeRto3x3RotationMatrix(dBodyGetRotation(own->getBody()));
+
+        switch (mode) {
+            case OnlyZAxis:
+                if (dimensions == (X | Y | Z)) return A.column(2).convertToList();
+                else return selectrows(A.column(2), dimensions);
+                break;
+            case ZProjection:
+                if (dimensions == (X | Y | Z)) return A.row(2).convertToList();
+                else return selectrows(A.row(2) ^ (matrix::T), dimensions);
+                break;
+            case Axis:
+                if (dimensions == (X | Y | Z)) return A.convertToList();
+                else return selectrows(A, dimensions);
+                break;
+        }
+        return std::list<sensor>();
+    }
+
+    int AxisOrientationSensorMod::get(sensor *sensors, int length) const {
+        assert(own);
+        static matrix::Matrix lastTime(3, 3);
+        static double time_interval = 0.01;
+
+        matrix::Matrix A = odeRto3x3RotationMatrix(dBodyGetRotation(own->getBody()));
+
+        //calculate angular velocity:
+        matrix::Matrix deriv = (A - lastTime) * (1 / time_interval); // * A^(matrix::T);
+        matrix::Matrix angular = deriv * (A ^ (matrix::T));
+
+        double w_x = angular.val(0, 2),
+                w_y = angular.val(1, 0),
+                w_z = angular.val(2, 1);
+        lastTime = A;
+        // printf("%lf %lf %lf\n", w_x, w_y, w_z);
+
+        switch (mode) {
+            case OnlyZAxis:
+                if (dimensions == (X | Y | Z)) return A.column(2).convertToBuffer(sensors, length);
+                else return selectrows(sensors, length, A.column(2), dimensions);
+                break;
+            case ZProjection:
+                if (dimensions == (X | Y | Z)) {
+                    int return_value = A.row(2).convertToBuffer(sensors, length);
+                    //for (int i = 0; i < length; i++) {
+                    //  printf("%lf ", sensors[i]);
+                    //}
+                    //printf("\n");
+                    return return_value;
+                }
+                else return selectrows(sensors, length, A.row(2) ^ (matrix::T), dimensions);
+                break;
+            case Axis:
+                if (dimensions == (X | Y | Z)) return A.convertToBuffer(sensors, length);
+                else return selectrows(sensors, length, A, dimensions);
+                break;
+        }
+        return 0;
+    }
 
 }
 
