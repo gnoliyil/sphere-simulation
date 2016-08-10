@@ -51,10 +51,13 @@ class ConceptorDEP : public DEP {
 public:
     ConceptorDEP(const std::vector<matrix::Matrix> &conceptors_,
                  const matrix::Matrix &initialW, const matrix::Matrix &initialWOut,
+                 const matrix::Matrix &initialWbias,
                  const ConceptorDEPConf &conf_ = getDefaultConf(),
                  const DEPConf &depconf = DEP::getDefaultConf());
 
     virtual ~ConceptorDEP();
+
+    virtual void init(int sensornumber, int motornumber, RandGen *randGen);
 
     static ConceptorDEPConf getDefaultConf() {
         ConceptorDEPConf conf;
@@ -73,6 +76,7 @@ public:
     /** loads the controller values from a given file. */
     virtual bool restore(FILE *f);
 
+    void switchConceptor(int k);
     void switchConceptor(int i, int j);
 
     matrix::Matrix getCurrentConceptor();
