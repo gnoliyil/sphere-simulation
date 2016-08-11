@@ -72,8 +72,11 @@ void ConceptorDEP::init(int sensornumber, int motornumber, RandGen *randGen) {
     Matrix y = W_out * neuron;
     Matrix y_c = y.rows(0, number_sensors * number_motors - 1)
             .reshape(number_motors, number_sensors);
-    C = C * cconf.lambdaC + y_c * (1 - cconf.lambdaC);
-    C_update = C_update * cconf.lambdaC + y_c * (1 - cconf.lambdaC);
+
+    double lambdaC = getParam("lambdaC");
+    double lambdaH = getParam("lambdaH");
+    C = C * lambdaC + y_c * (1 - lambdaC);
+    C_update = C_update * lambdaC + y_c * (1 - lambdaC);
     h *= 0;
 }
 
@@ -96,8 +99,11 @@ void ConceptorDEP::learnController() {
     Matrix y = W_out * neuron;
     Matrix y_c = y.rows(0, number_sensors * number_motors - 1)
             .reshape(number_motors, number_sensors);
-    C = C * cconf.lambdaC + y_c * (1 - cconf.lambdaC);
-    C_update = C_update * cconf.lambdaC + y_c * (1 - cconf.lambdaC);
+
+    double lambdaC = getParam("lambdaC");
+    double lambdaH = getParam("lambdaH");
+    C = C * lambdaC + y_c * (1 - lambdaC);
+    C_update = C_update * lambdaC + y_c * (1 - lambdaC);
     // update C
     // maybe not correct, because C need initialization
 
@@ -106,7 +112,7 @@ void ConceptorDEP::learnController() {
         assert(y.getM() == number_sensors * number_motors + h.getM());
         Matrix y_h = y.rows(number_sensors * number_motors,
                             y.getM() - 1);
-        h = h * cconf.lambdaH + y_h * (1 - cconf.lambdaH);
+        h = h * lambdaH + y_h * (1 - lambdaH);
     }
     // update H
 }
