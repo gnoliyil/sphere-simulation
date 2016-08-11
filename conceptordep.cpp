@@ -33,6 +33,12 @@ ConceptorDEP::ConceptorDEP(const std::vector<matrix::Matrix> &conceptors_,
     ;
     num_patterns = conceptors.size();
     num_neuron = conceptors.begin()->getM();
+
+    addParameterDef("lambdaH", &(cconf.lambdaH), 1.0, 0, 1,
+                    "the percentage of H from DEP model");
+    addParameterDef("lambdaC", &(cconf.lambdaC), 0.5, 0, 1,
+                    "the percentage of C from DEP model");
+
 };
 
 void ConceptorDEP::init(int sensornumber, int motornumber, RandGen *randGen) {

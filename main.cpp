@@ -161,6 +161,11 @@ public:
         cpc.transitionTime = 500;
 
         ConceptorDEP *dep = new ConceptorDEP(conceptors, W, W_out, W_bias, cpc, pc);
+        dep->setParam("lambdaC", 0.5);
+        dep->setParam("lambdaH", 1);
+        dep->setParam("epsM", 0);
+        dep->setParam("epsM", 0);
+        dep->setParam("epsM", 0);
         dep->setParam("epsM", 0);
         dep->setParam("epsh", 0.0);
         dep->setParam("synboost", 2.2);
