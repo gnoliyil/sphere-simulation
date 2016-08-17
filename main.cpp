@@ -72,6 +72,9 @@ class ThisSim : public Simulation {
 public:
     AbstractController *controller;
     Sphererobot3MassesMod *sphere1;
+    ConceptorDEP* dep;
+    OdeAgent *agent;
+    One2OneWiring *wiring;
 
     // starting function (executed once at the beginning of the simulation loop)
     void start(const OdeHandle &odeHandle, const OsgHandle &osgHandle, GlobalData &global) {
@@ -160,14 +163,11 @@ public:
         cpc.lambdaH = 1;
         cpc.transitionTime = 20;
 
-        ConceptorDEP *dep = new ConceptorDEP(conceptors, W, W_out, W_bias, cpc, pc);
+        dep = new ConceptorDEP(conceptors, W, W_out, W_bias, cpc, pc);
         dep->setParam("lambdaC", 0.5);
         dep->setParam("lambdaH", 1);
         dep->setParam("epsM", 0);
-        dep->setParam("epsM", 0);
-        dep->setParam("epsM", 0);
-        dep->setParam("epsM", 0);
-        dep->setParam("epsh", 0.0);
+        dep->setParam("epsh", 0.05);
         dep->setParam("synboost", 2.2);
         dep->setParam("urate", 0.05);
         dep->setParam("indnorm", 1); // 0 is global normalization
@@ -176,19 +176,20 @@ public:
         global.configs.push_back(controller);
 
         // create pointer to one2onewiring which uses colored-noise
-        One2OneWiring *wiring = new One2OneWiring(new ColorUniformNoise);
+        wiring = new One2OneWiring(new ColorUniformNoise);
 
         // create pointer to agent (plotoptions is provided by Simulation (generated from cmdline options)
         // initialize pointer with controller, robot and wiring
         // push agent in globel list of agents
-        OdeAgent *agent = new OdeAgent(global);
+        agent = new OdeAgent(global);
         agent->init(controller, sphere1, wiring);
 
         // the following line will enable a position tracking of the robot, which is written into a file
-        agent->setTrackOptions(TrackRobot(true, true, true, false, "Sphere_zaxis", 20));
+        // agent->setTrackOptions(TrackRobot(true, true, true, false, "Sphere_zaxis", 20));
         global.agents.push_back(agent);
 
         // display all parameters of all configurable objects on the console
+        dBodyAddForce(sphere1->getMainPrimitive()->getBody(), -500, 0, 0);
 
     }
 
@@ -235,6 +236,30 @@ public:
             }
             return true;
         } else return false;
+    }
+
+    bool restart(const OdeHandle &odeHandle, const OsgHandle &osgHandle, GlobalData &global)
+    {
+        global.agents.pop_back();
+        global.configs.pop_back();
+        global.configs.pop_back();
+        printf("there left %d agents. \n", global.agents.size());
+        delete agent;
+
+        end(global);
+        start(odeHandle, osgHandle, global);
+
+        return true;
+    }
+
+    virtual void addCallback(GlobalData &globalData, bool draw,
+                             bool pause, bool control )
+    {
+        // printf("globalData.time = %.6f\n", globalData.time);
+        if (globalData.time > 40)
+        {
+            simulation_time_reached = true;
+        }
     }
 
     virtual void bindingDescription(osg::ApplicationUsage &au) const {

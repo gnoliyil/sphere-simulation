@@ -26,6 +26,7 @@ using namespace std;
 DEP::DEP(const DEPConf &conf)
         : AbstractController("DEP", "1.0"),
           conf(conf) {
+    printf("New DEP controller created.\n");
     t = 0;
 
     addParameterDef("epsh", &epsh, 0.0, 0, 5, "learning rate of the controller bias");
