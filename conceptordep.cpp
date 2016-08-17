@@ -29,7 +29,9 @@ ConceptorDEP::ConceptorDEP(const std::vector<matrix::Matrix> &conceptors_,
                            const matrix::Matrix &initialWbias,
                            const ConceptorDEPConf &conf_, const DEPConf &depconf) :
         DEP(depconf), cconf(conf_), W(initialW), W_out(initialWOut),
-        conceptor_bias(initialWbias), conceptors(conceptors_) {
+        conceptor_bias(initialWbias), conceptors(conceptors_),
+        Wh(initialW), W_outh(initialWOut),
+        conceptor_biash(initialWbias), conceptorsh(conceptors_) {
     ;
     num_patterns = conceptors.size();
     num_neuron = conceptors.begin()->getM();
@@ -54,13 +56,16 @@ void ConceptorDEP::init(int sensornumber, int motornumber, RandGen *randGen) {
     for (int i = 0; i < num_neuron; i++)
         X_temp[i] = 0.5 * randGen->rand() + 0.25; // - 0.5 + cconf.initialXMean;
     X.set(X_temp);
-    //X.read(fopen("xarray.txt", "r"));
+    X.read(fopen("xarray.txt", "r"));
     neuron = X;
+    neuronh = X;
     delete[]X_temp;
 
     // initialize transition source and target
     transition_source = transition_target = 0;
+    transition_sourceh = transition_target = 0;
     current_position = cconf.transitionTime;
+    current_positionh = cconf.transitionTime;
 
     Matrix current_conceptor = getCurrentConceptor();
     for (int i = 0; i < 10; i++)
@@ -77,6 +82,14 @@ void ConceptorDEP::init(int sensornumber, int motornumber, RandGen *randGen) {
     double lambdaH = getParam("lambdaH");
     C = C * lambdaC + y_c * (1 - lambdaC);
     C_update = C_update * lambdaC + y_c * (1 - lambdaC);
+
+    Matrix current_conceptorh = getCurrentConceptorh();
+    for (int i = 0; i < 10; i++)
+    {
+        neuronh = Wh * neuronh + conceptor_biash;
+        neuronh = neuronh.map(g);
+        neuronh = current_conceptorh * neuronh;
+    }
     h *= 0;
 }
 
@@ -87,6 +100,11 @@ ConceptorDEP::~ConceptorDEP() {
 void ConceptorDEP::learnController() {
     DEP::learnController();
     // learn controller states using DEP rules
+
+    // ------------------- update C ------------------------
+
+    double lambdaC = getParam("lambdaC");
+    double lambdaH = getParam("lambdaH");
 
     Matrix current_conceptor = getCurrentConceptor();
     if (current_position < cconf.transitionTime)
@@ -100,12 +118,22 @@ void ConceptorDEP::learnController() {
     Matrix y_c = y.rows(0, number_sensors * number_motors - 1)
             .reshape(number_motors, number_sensors);
 
-    double lambdaC = getParam("lambdaC");
-    double lambdaH = getParam("lambdaH");
     C = C * lambdaC + y_c * (1 - lambdaC);
     C_update = C_update * lambdaC + y_c * (1 - lambdaC);
     // update C
     // maybe not correct, because C need initialization
+
+    // -------------------- update H ------------------------
+
+    Matrix current_conceptorh = getCurrentConceptorh();
+    if (current_positionh < cconf.transitionTime)
+        current_positionh += 1;
+    neuronh = Wh * neuronh + conceptor_biash;
+    neuronh = neuronh.map(g);
+    neuronh = current_conceptorh * neuronh;
+    // update X
+
+    y = W_outh * neuronh;
 
     if (y.getM() > number_sensors * number_motors) {
         // assert(0 && "Seems it should not be here now");
@@ -125,6 +153,14 @@ Matrix ConceptorDEP::getCurrentConceptor() {
     return current;
 }
 
+Matrix ConceptorDEP::getCurrentConceptorh() {
+    double lambda = (double) current_positionh / cconf.transitionTime;
+    Matrix current =
+            conceptorsh[transition_sourceh] * (1 - lambda) +
+            conceptorsh[transition_targeth] * lambda;
+    return current;
+}
+
 void ConceptorDEP::switchConceptor(int tgt) {
     transition_source = transition_target;
     transition_target = tgt;
@@ -135,6 +171,19 @@ void ConceptorDEP::switchConceptor(int src, int tgt) {
     transition_source = src;
     transition_target = tgt;
     current_position = 0;
+}
+
+
+void ConceptorDEP::switchConceptorh(int tgt) {
+    transition_sourceh = transition_targeth;
+    transition_targeth = tgt;
+    current_positionh = 0;
+}
+
+void ConceptorDEP::switchConceptorh(int src, int tgt) {
+    transition_sourceh = src;
+    transition_targeth = tgt;
+    current_positionh = 0;
 }
 
 /* stores the controller values to a given file. */

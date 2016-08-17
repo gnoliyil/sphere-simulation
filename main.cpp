@@ -82,7 +82,7 @@ public:
         //  global.odeConfig.setParam("gravity", 0); // no gravity
 
         // stacked Playgrounds
-        double scale = 100;
+        double scale = 200;
         double heightoffset = 2;
         double height = 1;
         for (int i = 0; i < 1; i++) {
@@ -158,7 +158,7 @@ public:
         cpc.initialXMean = 0.5;
         cpc.lambdaC = 0.5;
         cpc.lambdaH = 1;
-        cpc.transitionTime = 500;
+        cpc.transitionTime = 20;
 
         ConceptorDEP *dep = new ConceptorDEP(conceptors, W, W_out, W_bias, cpc, pc);
         dep->setParam("lambdaC", 0.5);
@@ -198,7 +198,7 @@ public:
     */
     virtual bool command(const OdeHandle &, const OsgHandle &, GlobalData &globalData,
                          int key, bool down) {
-        static int down_n = 0;
+        static int down_n = 0, down_z = 0;
         if (down) { // only when key is pressed, not when released
             switch ((char) key) {
                 case 'X' :
@@ -216,12 +216,18 @@ public:
                 case 'n' :
                     down_n = 1;
                     break;
+                case 'z':
+                    down_z = 1;
+                    break;
                 default:
-                    if (down_n && key >= '0' && key <= '5')
+                    if (key >= '0' && key <= '5')
                     {
-                        ((ConceptorDEP*)controller)->switchConceptor(key - '0');
-                        printf("key %d down\n", key - '0');
+                        if (down_n)
+                            ((ConceptorDEP*)controller)->switchConceptor(key - '0');
+                        else if (down_z)
+                            ((ConceptorDEP*)controller)->switchConceptorh(key - '0');
                         down_n = 0;
+                        down_z = 0;
                         return true;
                     }
                     down_n = 0;

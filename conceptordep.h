@@ -81,6 +81,11 @@ public:
 
     matrix::Matrix getCurrentConceptor();
 
+    void switchConceptorh(int k);
+    void switchConceptorh(int i, int j);
+
+    matrix::Matrix getCurrentConceptorh();
+
     // accessors to matrices
     virtual matrix::Matrix getM() { return M; }
 
@@ -101,17 +106,21 @@ protected:
     ConceptorDEPConf cconf; // configuration object
 
     // conceptor related variables
-    matrix::Matrix neuron; // neuron state
-    matrix::Matrix W;      // x(i+1) = conceptor * tanh(W*(x(i) + conceptor_bias) + random_bias
-    matrix::Matrix W_out;  // W_out from conceptor matrix
-    matrix::Matrix conceptor_bias;
-    std::vector<matrix::Matrix> conceptors;
+    matrix::Matrix neuron, neuronh; // neuron state
+    matrix::Matrix W, Wh;      // x(i+1) = conceptor * tanh(W*(x(i) + conceptor_bias) + random_bias
+    matrix::Matrix W_out, W_outh;  // W_out from conceptor matrix
+    matrix::Matrix conceptor_bias, conceptor_biash;
+    std::vector<matrix::Matrix> conceptors, conceptorsh;
     matrix::Matrix conceptor_matrix;
     int num_patterns;
     int num_neuron;
     int transition_source,
-            transition_target;
+        transition_target;
     int current_position;
+
+    int transition_sourceh,
+        transition_targeth;
+    int current_positionh;
     // ------ end conceptor related variables -------
 
     /// learn controller (C,h, C_update)
