@@ -65,7 +65,7 @@ void ConceptorDEP::init(int sensornumber, int motornumber, RandGen *randGen) {
 
     // initialize transition source and target
     transition_source = transition_target = 0;
-    transition_sourceh = transition_target = 0;
+    transition_sourceh = transition_targeth = 0;
     current_position = cconf.transitionTime;
     current_positionh = cconf.transitionTime;
 
@@ -158,7 +158,8 @@ Matrix ConceptorDEP::getCurrentConceptor() {
 Matrix ConceptorDEP::getCurrentConceptorh() {
     double lambda = (double) current_positionh / cconf.transitionTime;
     Matrix current =
-            conceptorsh[transition_sourceh] * (1 - lambda) +
+            conceptorsh[transition_sourceh] * (1 - lambda);
+    current = current +
             conceptorsh[transition_targeth] * lambda;
     return current;
 }

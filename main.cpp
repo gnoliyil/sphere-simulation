@@ -75,6 +75,30 @@ public:
     ConceptorDEP* dep;
     OdeAgent *agent;
     One2OneWiring *wiring;
+    std::vector<matrix::Matrix> conceptors;
+    matrix::Matrix W;
+    matrix::Matrix W_out;
+    matrix::Matrix W_bias;
+    bool first;
+
+    ThisSim(){
+        first = true;
+    }
+
+    void loadConceptors() {
+        //--------------------------------
+        // LOAD CONCEPTORS FROM FILE
+        //--------------------------------
+        FILE *fp = fopen("conceptor.dat", "r");
+        for (int i = 0; i < 6; i++) {
+            matrix::Matrix c;
+            c.read(fp, false);
+            conceptors.push_back(c);
+        }
+        W.read(fp, false);
+        W_out.read(fp, false);
+        W_bias.read(fp, false);
+    }
 
     // starting function (executed once at the beginning of the simulation loop)
     void start(const OdeHandle &odeHandle, const OsgHandle &osgHandle, GlobalData &global) {
@@ -129,24 +153,10 @@ public:
         //controller = new InvertMotorSpace(1);
         //controller->setParam("epsA",0); // model learning rate
         //controller->setParam("epsC",0); // controller learning rate
-        //controller->setParam("rootE",3);    // model and contoller learn with square rooted error
+        //controller->setParam("rootE",3);    // model and contoller learn with square rooted errorloadConceptors();
 
-        //--------------------------------
-        // LOAD CONCEPTORS FROM FILE
-        //--------------------------------
-        std::vector<matrix::Matrix> conceptors;
-        FILE *fp = fopen("conceptor.dat", "r");
-        for (int i = 0; i < 6; i++) {
-            matrix::Matrix c;
-            c.read(fp, false);
-            conceptors.push_back(c);
-        }
-        matrix::Matrix W;
-        matrix::Matrix W_out;
-        matrix::Matrix W_bias;
-        W.read(fp, false);
-        W_out.read(fp, false);
-        W_bias.read(fp, false);
+        if (first)
+            loadConceptors();
 
         //--------------------------------
         // CREATE DEP CONTROLLER HERE
@@ -168,9 +178,9 @@ public:
         dep->setParam("lambdaH", 1);
         dep->setParam("epsM", 0);
         dep->setParam("epsh", 0.05);
-        dep->setParam("synboost", 2.2);
+        dep->setParam("synboost", 1.4);
         dep->setParam("urate", 0.05);
-        dep->setParam("indnorm", 1); // 0 is global normalization
+        dep->setParam("indnorm", 0); // 0 is global normalization
         dep->setParam("timedist", 4);
         controller = dep;
         global.configs.push_back(controller);
@@ -189,7 +199,7 @@ public:
         global.agents.push_back(agent);
 
         // display all parameters of all configurable objects on the console
-        dBodyAddForce(sphere1->getMainPrimitive()->getBody(), -500, 0, 0);
+        dBodyAddForce(sphere1->getMainPrimitive()->getBody(), 50, 0, 0);
 
     }
 
@@ -240,6 +250,7 @@ public:
 
     bool restart(const OdeHandle &odeHandle, const OsgHandle &osgHandle, GlobalData &global)
     {
+        first = false;
         global.agents.pop_back();
         global.configs.pop_back();
         global.configs.pop_back();
@@ -256,7 +267,7 @@ public:
                              bool pause, bool control )
     {
         // printf("globalData.time = %.6f\n", globalData.time);
-        if (globalData.time > 40)
+        if (globalData.time > 10)
         {
             simulation_time_reached = true;
         }
