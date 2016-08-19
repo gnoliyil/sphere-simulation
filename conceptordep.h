@@ -89,6 +89,14 @@ public:
     // accessors to matrices
     virtual matrix::Matrix getM() { return M; }
 
+    virtual int getTargetConceptorId(){
+        return transition_target;
+    }
+
+    virtual int getTargetConceptorIdh(){
+        return transition_targeth;
+    }
+
     virtual void setM(const matrix::Matrix &_M) {
         assert(M.getM() == _M.getM() && M.getN() == _M.getN());
         M = _M;
