@@ -251,7 +251,7 @@ public:
     bool restart(const OdeHandle &odeHandle, const OsgHandle &osgHandle, GlobalData &global)
     {
         first = false;
-        global.agents.pop_back();
+        /* global.agents.pop_back();
         global.configs.pop_back();
         global.configs.pop_back();
         printf("there left %d agents. \n", global.agents.size());
@@ -260,17 +260,17 @@ public:
         end(global);
         start(odeHandle, osgHandle, global);
 
-        return true;
+        return true;*/ 
     }
 
     virtual void addCallback(GlobalData &globalData, bool draw,
                              bool pause, bool control )
     {
         // printf("globalData.time = %.6f\n", globalData.time);
-        if (globalData.time > 10)
+        /* if (globalData.time > 10)
         {
             simulation_time_reached = true;
-        }
+        }*/ 
     }
 
     virtual void bindingDescription(osg::ApplicationUsage &au) const {
