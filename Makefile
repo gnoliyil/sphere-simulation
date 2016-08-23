@@ -45,7 +45,7 @@ LIBS  += $(BASELIBS) $(ADDITIONAL_LIBS)
 
 INC   += -I.
 
-CXX = g++
+CXX = /opt/intel/bin/icc
 CPPFLAGS = -Wall -pipe -Wno-deprecated $(INC) $(shell selforg-config $(CFGOPTS) --cflags) \
   $(shell ode_robots-config $(CFGOPTS) --intern --cflags)
 
