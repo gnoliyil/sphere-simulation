@@ -28,6 +28,8 @@
 
 using namespace lpzrobots;
 
+
+
 /// Class to wrap a sensor and feed its delayed values.
 class DelaySensor : public Sensor, public Configurable {
 public:
@@ -80,6 +82,33 @@ public:
     matrix::Matrix W_out;
     matrix::Matrix W_bias;
     bool first;
+
+    matrix::Matrix centroids;
+    matrix::Matrix state, activations, action_values, min_state, max_state;
+    matrix::Matrix new_state, new_activations;
+    matrix::Matrix theta;
+    matrix::Matrix e; // ((n_centroids, n_actions)
+
+    double rbf_density;
+
+    matrix::Matrix phi(const matrix::Matrix & state){
+        matrix::Matrix _phi = matrix::Matrix(1, centroids.getM(), 0);
+        for (int i = 0; i < centroids.getM(); i++)
+            _phi.val(0, i) = exp( (state - centroids.row(i)).norm_sqr() / rbf_density);
+        return _phi;
+    }
+
+    double state_value(const matrix::Matrix & activation, int action){
+        double val = (activation * theta.column(action)).val(0, 0);
+        return val;
+    }
+
+    matrix::Matrix state_values(const matrix::Matrix & activation){
+        matrix::Matrix val = (activation * theta);
+        return val;
+    }
+
+
 
     ThisSim(){
         first = true;
