@@ -57,6 +57,7 @@ void ConceptorDEP::init(int sensornumber, int motornumber, RandGen *randGen) {
         X_temp[i] = 0.5 * randGen->rand() + 0.25; // - 0.5 + cconf.initialXMean;
     X.set(X_temp);
     X.read(fopen("xarray.txt", "r"));
+    X = X.rows(0, 149);
     // in fact, the initial value of "X" DOES AFFECT the sign of the
     // produced value matrix
     neuron = X;
