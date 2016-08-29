@@ -26,6 +26,10 @@
 #include "dep.h"
 #include "conceptordep.h"
 
+#include <cmath>
+#include <algorithm>
+#include <random>
+
 using namespace lpzrobots;
 
 /// Class to wrap a sensor and feed its delayed values.
@@ -67,6 +71,72 @@ protected:
     long t;
 };
 
+static int speed_to_state(Sphererobot3MassesMod* sphere, ConceptorDEP *dep)
+{
+    double speed = sphere->getSpeed().x;
+    int current_conceptor = dep->getTargetConceptorId();
+
+    double max_sp = 0;
+    double min_sp = 3;
+    int segments = 30;
+    int target = (int)((speed - min_sp) / (max_sp - min_sp) * segments);
+
+    if (target < 0)
+        target = 0;
+    if (target >= segments)
+        target = segments - 1;
+
+    return target + current_conceptor * segments;
+}
+
+static double reward(Sphererobot3MassesMod* sphere)
+{
+    //double target_speed = -1;
+    //sphere->getSpeed().x
+    // -|speed|
+    // return -fabs((sphere->getSpeed().x - 2) * (sphere->getSpeed().x - 2));
+    return -fabs(sphere->getSpeed().x);
+}
+
+template <int N>
+static double exp_lambda(double x)
+{
+    return exp(x / N);
+}
+
+static int explore(matrix::Matrix & Q, int state, double random_rate)
+{
+    static std::default_random_engine generator;
+    static std::uniform_real_distribution<double> uniform(0, 1);
+
+    matrix::Matrix sub = Q.row(state);
+
+    int choice;
+
+    if (uniform(generator) < random_rate){
+        sub = sub.map(exp_lambda<3>);
+        sub *= 1.0 / sub.elementSum();
+        std::list<double> sub_list = sub.convertToList();
+        std::discrete_distribution<int> distribution(sub_list.begin(), sub_list.end());
+        choice = distribution(generator);
+
+//        std::list<double> sub_list = sub.convertToList();
+//        auto x = std::max_element(sub_list.begin(), sub_list.end());
+//        auto y = sub_list.begin();
+//        for (int i = 0; i < sub_list.size(); i++) {
+//            if (y == x) {
+//                choice = i;
+//                break;
+//            }
+//            y ++;
+//        }
+    } else {
+        choice = (int) (uniform(generator) * sub.getN());
+    }
+
+    return choice;
+}
+
 
 class ThisSim : public Simulation {
 public:
@@ -79,10 +149,57 @@ public:
     matrix::Matrix W;
     matrix::Matrix W_out;
     matrix::Matrix W_bias;
+
     bool first;
+    bool first_rl;
+
+    double eta = 0.25;
+    double learn_gamma = 0.99;
+
+    // reinforcement learning part
+    matrix::Matrix* Q;
+    int tot_action = 6;
+    // TODO: tot_action = 6 here, should be 12
+    int tot_state = 30 * 6;
+    double (*reward_f)(Sphererobot3MassesMod* sphere);
+    int (*explore_f)(matrix::Matrix & Q, int state, double random_rate);
+    int (*to_state)(Sphererobot3MassesMod* sphere, ConceptorDEP *dep);
+    double total_score;
+    int tot_iter;
+    int cur_iter;
+    int cur_state;
+    int cur_action;
+    double cur_reward;
+    int bef_state;
 
     ThisSim(){
         first = true;
+
+        // initialize Q
+        RandGen randGen;
+        randGen.init(123456);
+
+        Q = new matrix::Matrix(tot_state, tot_action);
+        double *temp = new double [tot_action * tot_state];
+        for (int i = 0; i < tot_action * tot_state; i++)
+            temp[i] = 0.05 * randGen.rand(); // - 0.5 + cconf.initialXMean;
+        Q->set(temp);
+        delete[] temp;
+
+        tot_iter = 500;
+        cur_iter = 0;
+
+        reward_f = reward;
+        explore_f = explore;
+        to_state = speed_to_state;
+
+        total_score = 0;
+
+        first_rl = true;
+    }
+
+    ~ThisSim() {
+        delete Q;
     }
 
     void loadConceptors() {
@@ -108,17 +225,20 @@ public:
         global.odeConfig.setParam("noise", 0.1);
         //  global.odeConfig.setParam("gravity", 0); // no gravity
 
-        // stacked Playgrounds
-        double scale = 200;
-        double heightoffset = 2;
-        double height = 1;
-        for (int i = 0; i < 1; i++) {
-            auto playground = new Playground(odeHandle, osgHandle,
-                                             osg::Vec3((4 + 4 * i) * scale, 1, heightoffset + i * height), 1, false);
-            playground->setColor(Color((i & 1) == 0, (i & 2) == 0, (i & 3) == 0, 0.3f));
-            playground->setTexture("Images/really_white.rgb");
-            playground->setPosition(osg::Vec3(0, 0, 0)); // playground positionieren und generieren
-            global.obstacles.push_back(playground);
+        if (first) {
+            // stacked Playgrounds
+            double scale = 200;
+            double heightoffset = 2;
+            double height = 1;
+            for (int i = 0; i < 1; i++) {
+                auto playground = new Playground(odeHandle, osgHandle,
+                                                 osg::Vec3((4 + 4 * i) * scale, 1, heightoffset + i * height), 1,
+                                                 false);
+                playground->setColor(Color((i & 1) == 0, (i & 2) == 0, (i & 3) == 0, 0.3f));
+                playground->setTexture("Images/really_white.rgb");
+                playground->setPosition(osg::Vec3(0, 0, 0)); // playground positionieren und generieren
+                global.obstacles.push_back(playground);
+            }
         }
 
 
@@ -146,15 +266,6 @@ public:
 
         global.configs.push_back(sphere1);
 
-        // Selforg - Controller
-        // create pointer to controller
-        // set some parameters
-        // push controller in global list of configurables
-        //controller = new InvertMotorSpace(1);
-        //controller->setParam("epsA",0); // model learning rate
-        //controller->setParam("epsC",0); // controller learning rate
-        //controller->setParam("rootE",3);    // model and contoller learn with square rooted errorloadConceptors();
-
         if (first)
             loadConceptors();
 
@@ -171,11 +282,11 @@ public:
         cpc.initialXMean = 0.5;
         cpc.lambdaC = 0.5;
         cpc.lambdaH = 1;
-        cpc.transitionTime = 20;
+        cpc.transitionTime = 5;
 
         dep = new ConceptorDEP(conceptors, W, W_out, W_bias, cpc, pc);
-        dep->setParam("lambdaC", 0.5);
-        dep->setParam("lambdaH", 1);
+        dep->setParam("lambdaC", 0.0);
+        dep->setParam("lambdaH", 1.0);
         dep->setParam("epsM", 0);
         dep->setParam("epsh", 0.05);
         dep->setParam("synboost", 1.4);
@@ -251,26 +362,83 @@ public:
     bool restart(const OdeHandle &odeHandle, const OsgHandle &osgHandle, GlobalData &global)
     {
         first = false;
-        /* global.agents.pop_back();
+        global.obstacles.clear();
+        global.agents.pop_back();
         global.configs.pop_back();
         global.configs.pop_back();
         printf("there left %d agents. \n", global.agents.size());
         delete agent;
 
+        FILE *fp = fopen("reinforce.log", "a");
+        fprintf(fp, "%d %.3f %.4f\n", cur_iter, global.time, total_score);
+        fclose(fp);
+
+        if (cur_iter >= tot_iter)
+            return false;
+
+        total_score = 0;
+        cur_iter += 1;
+        first_rl = true;
+
+        if (cur_iter % 100 == 0)
+        {
+            char fn[100];
+            sprintf(fn, "rl/Q%d.dat", cur_iter);
+            FILE *fp = fopen(fn, "w");
+            Q->store(fp);
+            fclose(fp);
+        }
+
         end(global);
         start(odeHandle, osgHandle, global);
 
-        return true;*/ 
+        return true; 
     }
 
     virtual void addCallback(GlobalData &globalData, bool draw,
                              bool pause, bool control )
     {
-        // printf("globalData.time = %.6f\n", globalData.time);
-        /* if (globalData.time > 10)
-        {
+        if (globalData.time > 30)
             simulation_time_reached = true;
-        }*/ 
+
+        if (globalData.time < 10)
+            return;
+
+        if (fabs(globalData.time * 2 - round(globalData.time * 2)) < 1e-4)
+        {
+            double x_speed;
+            if (!first_rl)
+            {
+                bef_state = cur_state;
+                x_speed = sphere1->getSpeed().x;
+                cur_state = to_state(sphere1, dep);
+
+                std::list<double> sub = Q->row(cur_state).convertToList();
+                double value = *(std::max_element(sub.begin(), sub.end()));
+                Q->val(bef_state, cur_action) +=
+                    eta * (cur_reward + learn_gamma * value - Q->val(bef_state, cur_action));
+            } else
+            {
+                x_speed = sphere1->getSpeed().x;
+                cur_state = to_state(sphere1, dep);
+                first_rl = false;
+            }
+
+            cur_reward = reward(sphere1);
+            if (globalData.time > 20)
+                total_score += cur_reward;
+            double random_rate = min(1, 1.5/(globalData.time - 10)) *
+                                 min(1.0 / log2(cur_iter + 2), 1);
+            cur_action = explore_f(*Q, cur_state, random_rate);
+
+            if (cur_action < 6)
+                dep->switchConceptor(cur_action);
+            else
+                dep->switchConceptorh(cur_action - 6);
+            // switch between conceptors
+            printf("it: %d  time: %.3f  score: %.3f  speed: %.3f  action: %d\n",
+                   cur_iter, globalData.time, total_score, x_speed, cur_action);
+        }
     }
 
     virtual void bindingDescription(osg::ApplicationUsage &au) const {
@@ -284,6 +452,8 @@ public:
 
 int main(int argc, char **argv) {
     ThisSim sim;
+    sim.tot_iter = 50000;
+
     sim.setGroundTexture("Images/yellow_velour.rgb");
     return sim.run(argc, argv) ? 0 : 1;
 }
